@@ -13,3 +13,9 @@ Hi! If you're here that means you are curious about Rust and/or want to learn it
 As previously I highly recommend going through official [rustlings tutorial](https://github.com/rust-lang/rustlings).
 
 "Final" code can be found on my [github repo](https://github.com/jbarszczewski/cli-game-of-life)
+
+Let's start!
+
+# Create Universe the TDD way
+
+After creating new project with `cargo new` (or `cargo init` if you're already in correct directory) open your favourite editor and... ignore main.rs for now. We're gonna create game logic module first.
