@@ -1,3 +1,6 @@
+mod game;
+
 fn main() {
-    print!("Nothing yet!");
+    let game = game::Universe::new(8, 8);
+    print!("{}", game);
 }
