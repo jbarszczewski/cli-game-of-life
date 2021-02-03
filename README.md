@@ -143,3 +143,105 @@ And run your prohect with `cargo run`. Ok it works! Of course nothing is really 
 ```
 
 This code comes straight from the WASM rust book and it applies Conway's Game Of Life rules to our universe while also taking care of edge wrapping so that our universe seems looped ([See flavour 3](https://rustwasm.github.io/docs/book/game-of-life/implementing.html)).
+Before we can use tick we need to prepare our terminal to display animated game Universe. Let's hop into that right now!
+
+P.S. - You can find source code for this chapter on my [GitHub](https://github.com/jbarszczewski/cli-game-of-life/tree/42c60e1c10073dd65819af7d1a6d7b049d1a449d)
+
+# Animate The Universe
+
+To work with terminal input/output we will use [Crossterm crate](https://crates.io/crates/crossterm), so let's add it to our `Cargo.toml`:
+
+```yaml
+[dependencies]
+crossterm = "0.19.0"
+```
+
+This crate have some really handy functions to manipulate terminal and it's cross platform we don't need to worry about any differences. Most of the crossterm commands are self explanatory as they are grouped into relevan modules, like `cursor::Hide` does exactly what it says: it hides the cursor.
+
+Because our game Universe will be updated and displayed in a loop we want to clear the screen before each tick. We will move into the alternate screen for the game time and go back to original terminal screen once we are done. First let's make sure we have all the necessery imports:
+
+```rust
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    event::{poll, read, Event},
+    execute,
+    style::{Color, Print, ResetColor, SetForegroundColor},
+    terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+    Result,
+};
+use std::io::stdout;
+use std::time::Duration;
+```
+
+Also our `main` function need complete overhaul and now will look like this:
+
+```rust
+fn main() -> Result<()> {
+    let mut game = game::Universe::new(5, 5);
+    game.set_cells(&[(2, 1), (2, 2), (2, 3)]);
+    execute!(
+        stdout(),
+        EnterAlternateScreen,
+        SetForegroundColor(Color::Magenta),
+        Hide
+    )?;
+
+    loop {
+        if poll(Duration::from_millis(500))? {
+            match read()? {
+                Event::Key(_) => break,
+                _ => {}
+            }
+        } else {
+            execute!(
+                stdout(),
+                Clear(ClearType::All),
+                MoveTo(0, 0),
+                Print(&game),
+                Print("Press enter to exit...")
+            )?;
+            game.tick();
+        }
+    }
+    execute!(stdout(), ResetColor, Show, LeaveAlternateScreen)?;
+    Ok(())
+}
+```
+
+Ok let's break down what we did here:
+
+1. `main` now returns Result type. This will allow us to provide feedback to users and set appropriate exit codes where needed.
+2. We set up our terminal in `execute!` macro, which accepts `std::io::Writer` type (stdout in our case) as first argument followed by one or more commands.
+3. In a loop we try do read the user input wrapped in a `poll` which ensure that we don't block the execution. We break the loop when user press the Enter key. If no user input is available in 500ms then we draw current state of the Universe and compute next state with `tick()`
+4. Once the loop is over we leave the alternate screen of the terminal.
+
+Now run the app with `cargo run` and you should see simple pattern alternating between horizontal and vertical lines.
+Ok but pressing Enter is not really what user expect when trying to exit the app. Let's modify our code so that it could respond to different keys.
+
+# Interact with The Universe
+
+Reason why we could only process Enter is that by default input is being processed on enter press. Which makes sense as usually you first want to type in the command and execute when it's all ready. But in our case we want user to be able to interact with single key presses. That means we need to enable [raw mode](https://docs.rs/crossterm/0.19.0/crossterm/terminal/#raw-mode). New code changes are as follow:
+
+```rust
+// add required imports:
+use terminal::{disable_raw_mode, enable_raw_mode};
+
+// add this line at the very begining of the main() function:
+enable_raw_mode()?;
+
+// replace code block when poll returns true, the match statement, with following:
+
+if let Event::Key(KeyEvent { code, .. }) = read()? {
+    match code {
+        KeyCode::Esc => {
+            break;
+        }
+        _ => {}
+    }
+}
+
+// finaly disable raw mode at the end of the function before returning Ok(()):
+disable_raw_mode()?;
+```
+
+It's very importat to add ability to exit from the loop as raw mode disables ctrl+c funcionality.
