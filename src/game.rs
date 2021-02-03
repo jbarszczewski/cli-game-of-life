@@ -67,6 +67,22 @@ impl Universe {
 	fn get_index(&self, row: u32, column: u32) -> usize {
 		(row * self.width + column) as usize
 	}
+
+	pub fn row_as_string(&self, row: u32) -> Option<String> {
+		if row < self.height {
+			let mut row_string = String::new();
+			let start = self.get_index(row, 0);
+			let end = self.get_index(row, self.width);
+			let line = &self.cells[start..end];
+			for &cell in line {
+				let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
+				row_string.push(symbol);
+			}
+			Some(row_string)
+		} else {
+			None
+		}
+	}
 }
 
 impl fmt::Display for Universe {
