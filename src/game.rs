@@ -47,6 +47,22 @@ impl Universe {
 		self.cells = next;
 	}
 
+	pub fn row_as_string(&self, row: u32) -> Option<String> {
+		if row < self.height {
+			let mut row_string = String::new();
+			let start = self.get_index(row, 0);
+			let end = self.get_index(row, self.width);
+			let line = &self.cells[start..end];
+			for &cell in line {
+				let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
+				row_string.push(symbol);
+			}
+			Some(row_string)
+		} else {
+			None
+		}
+	}
+
 	fn live_neighbour_count(&self, row: u32, column: u32) -> u8 {
 		let mut count = 0;
 		for delta_row in [self.height - 1, 0, 1].iter().cloned() {
@@ -66,22 +82,6 @@ impl Universe {
 	}
 	fn get_index(&self, row: u32, column: u32) -> usize {
 		(row * self.width + column) as usize
-	}
-
-	pub fn row_as_string(&self, row: u32) -> Option<String> {
-		if row < self.height {
-			let mut row_string = String::new();
-			let start = self.get_index(row, 0);
-			let end = self.get_index(row, self.width);
-			let line = &self.cells[start..end];
-			for &cell in line {
-				let symbol = if cell == Cell::Dead { '◻' } else { '◼' };
-				row_string.push(symbol);
-			}
-			Some(row_string)
-		} else {
-			None
-		}
 	}
 }
 
