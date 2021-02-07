@@ -10,8 +10,11 @@ use crossterm::{
 	},
 	Result,
 };
+use std::fs::File;
 use std::io::{stdout, Write};
+use std::io::{BufRead, BufReader};
 use std::time::Duration;
+
 mod game;
 
 fn main() -> Result<()> {
@@ -37,11 +40,18 @@ fn main() -> Result<()> {
 		)
 		.get_matches();
 
+	let mut stdout = stdout();
 	let delay: u64 = matches.value_of("DELAY").unwrap().parse().unwrap();
 
-	let mut game = game::Universe::new(5, 5);
-	let mut stdout = stdout();
-	game.set_cells(&[(2, 1), (2, 2), (2, 3)]);
+	let mut game = match matches.value_of("INPUT") {
+		Some(path) => create_game_from_file(path),
+		None => {
+			let mut default_game = game::Universe::new(5, 5);
+			default_game.set_cells(&[(2, 1), (2, 2), (2, 3)]);
+			default_game
+		}
+	};
+
 	enable_raw_mode()?;
 	execute!(
 		stdout,
@@ -87,4 +97,53 @@ fn main() -> Result<()> {
 	)?;
 	disable_raw_mode()?;
 	Ok(())
+}
+
+fn create_game_from_file(path: &str) -> game::Universe {
+	let file = File::open(path).unwrap();
+	let mut reader = BufReader::new(file);
+	let mut rows = String::default();
+	let mut rows_number = 0;
+	if let Ok(success) = reader.read_line(&mut rows) {
+		if success > 0 {
+			rows.pop();
+			rows_number = rows.parse().unwrap();
+		} else {
+			panic!("Rows number not detected!");
+		}
+	};
+
+	let mut cols = String::default();
+	let mut cols_number = 0;
+	if let Ok(success) = reader.read_line(&mut cols) {
+		if success > 0 {
+			cols.pop();
+			cols_number = cols.parse().unwrap();
+		} else {
+			panic!("Columns number not detected!");
+		}
+	};
+	let mut game_universe = game::Universe::new(cols_number, rows_number);
+	let mut row = 0;
+	loop {
+		let mut line = String::default();
+		match reader.read_line(&mut line) {
+			Ok(0) => break,
+			Ok(_) => {
+				let mut col = 0;
+				for char in line.chars() {
+					match char {
+						'1' => game_universe.set_cells(&[(row, col)]),
+						_ => {}
+					}
+					col += 1;
+				}
+			}
+			_ => break,
+		}
+
+		row += 1;
+	}
+
+	game_universe
 }

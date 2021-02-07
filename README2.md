@@ -170,8 +170,8 @@ Now it's time to make use of the INPUT argument. The value of this one is a path
 5
 00000
 00100
-00100
-00100
+00010
+01110
 00000
 ```
 
