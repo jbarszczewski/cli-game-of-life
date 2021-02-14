@@ -175,4 +175,101 @@ Now it's time to make use of the INPUT argument. The value of this one is a path
 00000
 ```
 
-First line is the number of rows, second is the number of columns and following lines describe each cell, 0 being dead and 1 alive.
+First line is the number of rows, second is the number of columns and following lines describe each cell, 0 being dead and 1 alive. Now there are two locations you can place the file:
+
+1. In the root of your project, same directory as `Cargo.toml` is, and you can run your project using `cargo run -- -i INPUT`. When using Cargo to run your project everything that is after `--` is passed as a parameters to your project rather than Cargo.
+2. In `./target/debug`. That means you need to run `cargo build` after each change and then execute `target/debug/cli-game-of-life -i starship`.
+
+In this tutorial I recommend sticking with first option as it's simpler when developing your application. The above configuration is called `starship` pattern in Game of Life so lets call the file the same and move on to the next steps.
+
+We will be reading the text file so we need to add new imports:
+
+```rust
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+```
+
+Below is the function that accept path to the configuration file, reads it and return new `game::Universe`:
+
+```rust
+fn create_game_from_file(path: &str) -> game::Universe {
+	let file = File::open(path).unwrap();
+	let mut reader = BufReader::new(file);
+	let mut line = String::new();
+	let mut rows_number = 0;
+	if let Ok(success) = reader.read_line(&mut line) {
+		if success > 0 {
+			rows_number = line.trim().parse().unwrap();
+			line.clear();
+		} else {
+			panic!("Rows number not detected!");
+		}
+	};
+	let mut cols_number = 0;
+	if let Ok(success) = reader.read_line(&mut line) {
+		if success > 0 {
+			cols_number = line.trim().parse().unwrap();
+			line.clear();
+		} else {
+			panic!("Columns number not detected!");
+		}
+	};
+	let mut game_universe = game::Universe::new(cols_number, rows_number);
+	let mut row = 0;
+	let mut live_cells = Vec::<(u32, u32)>::new();
+	loop {
+		match reader.read_line(&mut line) {
+			Ok(0) => break,
+			Ok(_) => {
+				let mut col = 0;
+				for char in line.chars() {
+					match char {
+						'1' => live_cells.push((row, col)),
+						_ => {}
+					}
+					col += 1;
+				}
+			}
+			_ => break,
+		}
+
+		line.clear();
+		row += 1;
+	}
+	game_universe.set_cells(&live_cells);
+	game_universe
+}
+```
+
+It might seems long and for sure there is a room for some refactoring but should be easy to understand what is happening:
+
+1. We open the file and we pass it to the BufReader which is optimized for many subsequent reads from the same source.
+2. We create new mutable String called `line` which will be reused for each line we read from the file.
+3. We try to read line and parse it to number of rows and collumns. `reader.read_line(&mut line)` Returns `Result<usize>` which when success will contain number of bytes read. If it reach the end of file it will return 0. Note that we need to call `.trim()` before parsing the value as `read_line` also returns end of line character. We also need to call `clear()` on our String as the `read_line` is appending to string rather than replacing it content.
+4. We create new Universe with the specified size and new vector that will hold our live cells coordinates.
+5. Loop that iterates through remaining lines, detects live cells and push them into the `live_cells` vector.
+6. We pass call `set_cells` on our `game_universe` and return it afterwards.
+
+Last thing that we need to do is make use of our new function. In `main()` delete the lines where we initialize new game (there will be two of them, one that creates new struct, the other that sets live cells), and place this code just under our `delay` variable initialization:
+
+```rust
+let mut game = match matches.value_of("INPUT") {
+	Some(path) => create_game_from_file(path),
+	None => {
+		let mut default_game = game::Universe::new(5, 5);
+		default_game.set_cells(&[(2, 1), (2, 2), (2, 3)]);
+		default_game
+	}
+};
+```
+
+This is simple one: we try to read `INPUT` argument, if one is passed then we call `create_game_from_file` otherwise we fallback to our default universe.
+
+Now we are ready to call `cargo run -- -i starship` and enjoy the view! You might want to create bigger universe than 5x5 as this new pattern is a moving, try something like 15x15, and because we don't validate line input lenght you don't need to add trailing `0` in each line.
+
+# Conclusion
+
+We covered two topics in this tutorial: using command line arguments and reading a file. Both might sound simple but are really important when creating any CLI application.
+I hope you've enjoyed this tutorial and as always if any suggestions/questions don't hesitate to leave a comment below.
+
+Thanks for reading and till the next time!

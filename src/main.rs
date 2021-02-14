@@ -102,38 +102,36 @@ fn main() -> Result<()> {
 fn create_game_from_file(path: &str) -> game::Universe {
 	let file = File::open(path).unwrap();
 	let mut reader = BufReader::new(file);
-	let mut rows = String::default();
+	let mut line = String::new();
 	let mut rows_number = 0;
-	if let Ok(success) = reader.read_line(&mut rows) {
+	if let Ok(success) = reader.read_line(&mut line) {
 		if success > 0 {
-			rows.pop();
-			rows_number = rows.parse().unwrap();
+			rows_number = line.trim().parse().unwrap();
+			line.clear();
 		} else {
 			panic!("Rows number not detected!");
 		}
 	};
-
-	let mut cols = String::default();
 	let mut cols_number = 0;
-	if let Ok(success) = reader.read_line(&mut cols) {
+	if let Ok(success) = reader.read_line(&mut line) {
 		if success > 0 {
-			cols.pop();
-			cols_number = cols.parse().unwrap();
+			cols_number = line.trim().parse().unwrap();
+			line.clear();
 		} else {
 			panic!("Columns number not detected!");
 		}
 	};
 	let mut game_universe = game::Universe::new(cols_number, rows_number);
 	let mut row = 0;
+	let mut live_cells = Vec::<(u32, u32)>::new();
 	loop {
-		let mut line = String::default();
 		match reader.read_line(&mut line) {
 			Ok(0) => break,
 			Ok(_) => {
 				let mut col = 0;
 				for char in line.chars() {
 					match char {
-						'1' => game_universe.set_cells(&[(row, col)]),
+						'1' => live_cells.push((row, col)),
 						_ => {}
 					}
 					col += 1;
@@ -142,8 +140,9 @@ fn create_game_from_file(path: &str) -> game::Universe {
 			_ => break,
 		}
 
+		line.clear();
 		row += 1;
 	}
-
+	game_universe.set_cells(&live_cells);
 	game_universe
 }
